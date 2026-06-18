@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
@@ -47,7 +47,7 @@ import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -254,7 +254,7 @@ fun VideoPlayerScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onBack) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Retour", tint = TextLight)
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = TextLight)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -449,7 +449,7 @@ fun GestureHUDOverlay(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = if (type == "volume") Icons.Default.VolumeUp else Icons.Default.BrightnessHigh,
+                imageVector = if (type == "volume") Icons.AutoMirrored.Filled.VolumeUp else Icons.Default.BrightnessHigh,
                 contentDescription = null,
                 tint = NeonCyan,
                 modifier = Modifier.size(24.dp)
