@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -21,6 +23,21 @@ android {
   }
 
   signingConfigs {
+    // Automatically restore debug.keystore from base64 if running in clean environment/CI
+    val debugKeystoreFile = file("${rootDir}/debug.keystore")
+    if (!debugKeystoreFile.exists()) {
+      val base64File = file("${rootDir}/debug.keystore.base64")
+      if (base64File.exists()) {
+        try {
+          val base64Text = base64File.readText().trim()
+          val decodedBytes = Base64.getDecoder().decode(base64Text)
+          debugKeystoreFile.writeBytes(decodedBytes)
+        } catch (e: Exception) {
+          println("Warning: Failed to decode debug.keystore.base64: ${e.message}")
+        }
+      }
+    }
+
     create("release") {
       val keystorePathEnv = System.getenv("KEYSTORE_PATH")
       val keystoreFile = if (keystorePathEnv != null) {
@@ -36,14 +53,14 @@ android {
         keyPassword = System.getenv("KEY_PASSWORD")
       } else {
         // Safe CI/CD fallback to standard debug signing key when release credentials or keystore is missing
-        storeFile = file("${rootDir}/debug.keystore")
+        storeFile = debugKeystoreFile
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"
       }
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
+      storeFile = debugKeystoreFile
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
