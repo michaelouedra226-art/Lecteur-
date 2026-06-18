@@ -75,7 +75,7 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      // Utilisation de la signature par défaut pour le debug
     }
   }
   compileOptions {
