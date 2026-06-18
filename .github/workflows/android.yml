@@ -8,51 +8,50 @@ on:
 
 jobs:
   build:
-    name: Build Premium Media Player APK & AAB
+    name: Build Premium Media Player APK
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Source Code
-      uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up JDK 17
+         # Used standard setup action
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '9.3.1'
-        validate-wrappers: false
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+          validate-wrappers: false
 
-    - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon
+      - name: Restore Debug Keystore from Base64
+        run: |
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+            echo "Debug keystore successfully restored."
+          else
+            echo "Warning: debug.keystore.base64 not found. Fallback to automated creation."
+          fi
 
-    - name: Build Release APK (Unsigned)
-      run: gradle assembleRelease --no-daemon
+      - name: Build Debug APK
+        run: gradle assembleDebug --no-daemon
 
-    - name: Build Debug Android App Bundle (AAB)
-      run: gradle bundleDebug --no-daemon
+      - name: Build Release APK (Unsigned)
+        run: gradle assembleRelease --no-daemon
 
-    - name: Build Release AAB (Unsigned)
-      run: gradle bundleRelease --no-daemon
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: premium-player-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
 
-    - name: Upload Debug APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: premium-player-debug-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: premium-player-release-apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
 
-    - name: Upload Release APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: premium-player-release-apk
-        path: app/build/outputs/apk/release/app-release-unsigned.apk
-
-    - name: Upload Release AAB Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: premium-player-release-aab
-        path: app/build/outputs/bundle/release/app-release-unsigned.aab
