@@ -1,7 +1,12 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.audiofx.Equalizer
+import android.os.Build
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -166,7 +171,38 @@ class MediaPlayerViewModel(application: Application) : AndroidViewModel(applicat
     private var androidEqualizer: Equalizer? = null
     private var progressTrackingJob: Job? = null
 
+    private val mediaNotificationReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.example.PLAY_PAUSE" -> {
+                    togglePlayPause()
+                }
+                "com.example.CLOSE" -> {
+                    pause()
+                    val stopIntent = Intent(context, com.example.data.service.AudioNotificationService::class.java)
+                    context?.stopService(stopIntent)
+                }
+            }
+        }
+    }
+
     init {
+        // Register receiver for media playback controls safely
+        val filter = IntentFilter().apply {
+            addAction("com.example.PLAY_PAUSE")
+            addAction("com.example.CLOSE")
+        }
+        val receiverFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_NOT_EXPORTED
+        } else {
+            0
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            application.registerReceiver(mediaNotificationReceiver, filter, receiverFlag)
+        } else {
+            application.registerReceiver(mediaNotificationReceiver, filter)
+        }
+
         // Prepare listener for player state
         _player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
@@ -176,6 +212,7 @@ class MediaPlayerViewModel(application: Application) : AndroidViewModel(applicat
                 } else {
                     stopTrackingProgress()
                 }
+                updateNotification()
             }
 
             override fun onPlaybackStateChanged(state: Int) {
@@ -342,6 +379,8 @@ class MediaPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
             // Update database history
             repository.addToHistory(item.path)
+            
+            updateNotification()
         }
     }
 
@@ -476,8 +515,36 @@ class MediaPlayerViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    private fun updateNotification() {
+        val item = _currentPlayingItem.value
+        val context = getApplication<Application>().applicationContext
+        if (item != null) {
+            val intent = Intent(context, com.example.data.service.AudioNotificationService::class.java).apply {
+                putExtra("EXTRA_TITLE", item.title)
+                putExtra("EXTRA_IS_AUDIO", item.isAudio)
+                putExtra("EXTRA_IS_PLAYING", _isPlaying.value)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } else {
+            val intent = Intent(context, com.example.data.service.AudioNotificationService::class.java)
+            context.stopService(intent)
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
+        try {
+            getApplication<Application>().unregisterReceiver(mediaNotificationReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        val context = getApplication<Application>().applicationContext
+        val stopIntent = Intent(context, com.example.data.service.AudioNotificationService::class.java)
+        context.stopService(stopIntent)
         progressTrackingJob?.cancel()
         androidEqualizer?.release()
         _player.release()

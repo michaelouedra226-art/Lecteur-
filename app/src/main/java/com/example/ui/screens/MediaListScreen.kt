@@ -82,6 +82,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.PlayCircleOutline
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import coil.compose.AsyncImage
 import com.example.data.entity.MediaEntity
 import com.example.data.entity.PlaylistEntity
@@ -732,11 +741,9 @@ fun VideoCardItem(
                     .aspectRatio(16f / 10f)
                     .background(Color.Black.copy(0.4f))
             ) {
-                // Background video placeholder visual
-                AsyncImage(
-                    model = "https://picsum.photos/seed/${item.title.hashCode()}/320/200",
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                // Background video helper visual (loads actual local frames dynamically)
+                VideoThumbnail(
+                    path = item.path,
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -992,6 +999,85 @@ fun PlaylistCard(
                     text = "Collection Audio",
                     color = TextGray,
                     fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun VideoThumbnail(
+    path: String,
+    modifier: Modifier = Modifier
+) {
+    var thumbnailBitmap by remember(path) { mutableStateOf<Bitmap?>(null) }
+    val context = LocalContext.current
+
+    LaunchedEffect(path) {
+        if (!path.startsWith("http")) { // Local file
+            withContext(Dispatchers.IO) {
+                var retriever: MediaMetadataRetriever? = null
+                try {
+                    retriever = MediaMetadataRetriever()
+                    if (path.startsWith("content://")) {
+                        retriever.setDataSource(context, Uri.parse(path))
+                    } else {
+                        retriever.setDataSource(path)
+                    }
+                    val bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: retriever.frameAtTime
+                    thumbnailBitmap = bitmap
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    try {
+                        retriever?.release()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+    }
+
+    if (path.startsWith("http")) {
+        // Map the online sample videos to their official thumbnail image URLs
+        val imageUrl = when {
+            path.contains("BigBuckBunny.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
+            path.contains("ElephantsDream.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg"
+            path.contains("TearsOfSteel.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/TearsOfSteel.jpg"
+            path.contains("ForBiggerBlazes.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg"
+            else -> "https://picsum.photos/seed/${path.hashCode()}/320/200"
+        }
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+        )
+    } else {
+        if (thumbnailBitmap != null) {
+            Image(
+                bitmap = thumbnailBitmap!!.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = modifier
+            )
+        } else {
+            // Modern premium gradient fallback with video indicator
+            Box(
+                modifier = modifier.background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1F2335), Color(0xFF161924))
+                    )
+                ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayCircleOutline,
+                    contentDescription = null,
+                    tint = Color.White.copy(0.3f),
+                    modifier = Modifier.size(40.dp)
                 )
             }
         }
