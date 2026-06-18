@@ -33,7 +33,7 @@ abstract class PremiumDatabase : RoomDatabase() {
                     context.applicationContext,
                     PremiumDatabase::class.java,
                     "premium_media_player_db"
-                ).fallbackToDestructiveMigration().build()
+                ).fallbackToDestructiveMigration(true).build()
                 INSTANCE = instance
                 instance
             }
