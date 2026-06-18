@@ -20,22 +20,23 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: 'gradle'
 
-    - name: Grant Execute Permission for Gradle Wrapper
-      run: chmod +x gradlew || true
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '9.3.1'
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+      run: gradle assembleDebug --no-daemon
 
     - name: Build Release APK (Unsigned)
-      run: ./gradlew assembleRelease --no-daemon
+      run: gradle assembleRelease --no-daemon
 
     - name: Build Debug Android App Bundle (AAB)
-      run: ./gradlew bundleDebug --no-daemon
+      run: gradle bundleDebug --no-daemon
 
     - name: Build Release AAB (Unsigned)
-      run: ./gradlew bundleRelease --no-daemon
+      run: gradle bundleRelease --no-daemon
 
     - name: Upload Debug APK Artifact
       uses: actions/upload-artifact@v4
