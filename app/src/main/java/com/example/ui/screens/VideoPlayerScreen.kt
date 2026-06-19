@@ -45,6 +45,8 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -158,6 +160,14 @@ fun VideoPlayerScreen(
             .pointerInput(isLocked) {
                 if (isLocked) return@pointerInput
                 detectTapGestures(
+                    onDoubleTap = { offset ->
+                        val screenWidth = size.width
+                        if (offset.x < screenWidth / 2) {
+                            viewModel.seekTo((currentPosition - 10000L).coerceAtLeast(0L))
+                        } else {
+                            viewModel.seekTo((currentPosition + 10000L).coerceAtMost(duration))
+                        }
+                    },
                     onTap = { showControls = !showControls }
                 )
             }
@@ -304,19 +314,28 @@ fun VideoPlayerScreen(
                         }
                     }
 
-                    // Center Media Action controls (Play, Pause, Seek fast)
+                    // Center Media Action controls (Play, Pause, Seek fast, Skip tracks)
                     Row(
                         modifier = Modifier.align(Alignment.Center),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(40.dp)
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
+                        IconButton(
+                            onClick = { viewModel.playPrevious() },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color.Black.copy(0.4f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.SkipPrevious, contentDescription = "Précédent", tint = TextLight, modifier = Modifier.size(20.dp))
+                        }
+
                         IconButton(
                             onClick = { viewModel.skipBackward() },
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .background(Color.Black.copy(0.5f), CircleShape)
                         ) {
-                            Icon(Icons.Default.FastRewind, contentDescription = "-10s", tint = NeonCyan, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.FastRewind, contentDescription = "-10s", tint = NeonCyan, modifier = Modifier.size(22.dp))
                         }
 
                         IconButton(
@@ -337,10 +356,19 @@ fun VideoPlayerScreen(
                         IconButton(
                             onClick = { viewModel.skipForward() },
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .background(Color.Black.copy(0.5f), CircleShape)
                         ) {
-                            Icon(Icons.Default.FastForward, contentDescription = "+10s", tint = NeonCyan, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.FastForward, contentDescription = "+10s", tint = NeonCyan, modifier = Modifier.size(22.dp))
+                        }
+
+                        IconButton(
+                            onClick = { viewModel.playNext() },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color.Black.copy(0.4f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.SkipNext, contentDescription = "Suivant", tint = TextLight, modifier = Modifier.size(20.dp))
                         }
                     }
 

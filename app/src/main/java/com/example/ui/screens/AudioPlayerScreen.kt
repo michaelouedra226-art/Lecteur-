@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.ui.components.GlassmorphicCard
 import com.example.ui.components.InteractiveGlassCard
+import com.example.ui.components.getPremiumAudioCover
 import com.example.ui.viewmodel.MediaPlayerViewModel
 import com.example.ui.theme.GlassObsidian
 import com.example.ui.theme.NeonCyan
@@ -78,7 +79,13 @@ import com.example.ui.theme.NeonPink
 import com.example.ui.theme.TextGray
 import com.example.ui.theme.TextLight
 import androidx.media3.common.Player
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioPlayerScreen(
     viewModel: MediaPlayerViewModel,
@@ -92,12 +99,14 @@ fun AudioPlayerScreen(
     val repeatMode by viewModel.repeatMode.collectAsState()
     val shuffleActive by viewModel.shuffleActive.collectAsState()
     val eqBands by viewModel.eqBands.collectAsState()
+    val mediaList by viewModel.mediaList.collectAsState()
 
     val premiumTheme by viewModel.premiumTheme.collectAsState()
     val NeonCyan = Color(premiumTheme.primaryCyanHex)
     val NeonPink = Color(premiumTheme.secondaryPinkHex)
 
     var showEqPanel by remember { mutableStateOf(false) }
+    var showQueueSheet by remember { mutableStateOf(false) }
 
     // Vinyl album spin rotational animation
     val infiniteTransition = rememberInfiniteTransition()
@@ -343,7 +352,7 @@ fun AudioPlayerScreen(
                 ) {
                     // Seeded internet placeholder album image
                     AsyncImage(
-                        model = "https://picsum.photos/seed/${currentItem?.title.hashCode()}/320",
+                        model = getPremiumAudioCover(currentItem?.title ?: ""),
                         contentDescription = "Cd Cover",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -470,7 +479,13 @@ fun AudioPlayerScreen(
             }
 
             // Skip previous
-            IconButton(onClick = { viewModel.seekTo(0L) }) {
+            IconButton(onClick = {
+                if (currentPosition > 3000L) {
+                    viewModel.seekTo(0L)
+                } else {
+                    viewModel.playPrevious()
+                }
+            }) {
                 Icon(Icons.Default.SkipPrevious, contentDescription = "Prev", tint = TextLight, modifier = Modifier.size(28.dp))
             }
 
@@ -492,7 +507,7 @@ fun AudioPlayerScreen(
             }
 
             // Skip Next
-            IconButton(onClick = { viewModel.skipForward() }) {
+            IconButton(onClick = { viewModel.playNext() }) {
                 Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = TextLight, modifier = Modifier.size(28.dp))
             }
 
@@ -571,16 +586,122 @@ fun AudioPlayerScreen(
             }
 
             Row(
+                modifier = Modifier
+                    .clickable { showQueueSheet = true }
+                    .background(Color.White.copy(0.06f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, tint = TextGray, modifier = Modifier.size(16.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.List, 
+                    contentDescription = "File d'attente", 
+                    tint = NeonPink, 
+                    modifier = Modifier.size(16.dp)
+                )
                 Text(
-                    "Dolby Atmos activé",
-                    color = TextGray,
+                    "File d'attente",
+                    color = TextLight,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+        }
+
+        // SLIDING PLAY QUEUE BOTTOM SHEET DRAWER
+        if (showQueueSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showQueueSheet = false },
+                containerColor = Color(0xFF151928),
+                dragHandle = {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 12.dp)
+                            .size(36.dp, 4.dp)
+                            .background(Color.White.copy(0.2f), RoundedCornerShape(2.dp))
+                    )
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 24.dp)
+                ) {
+                    Text(
+                        text = "File d'attente active",
+                        color = TextLight,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(320.dp)
+                    ) {
+                        items(mediaList) { item ->
+                            val isCurrent = currentItem?.path == item.path
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isCurrent) NeonCyan.copy(0.12f) else Color.White.copy(0.04f))
+                                    .clickable {
+                                        viewModel.playMedia(item)
+                                        showQueueSheet = false
+                                    }
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Cover preview
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.Black.copy(0.3f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncImage(
+                                        model = getPremiumAudioCover(item.title),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // Title and artist
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.title,
+                                        color = if (isCurrent) NeonCyan else TextLight,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (isCurrent) "En cours de lecture" else "Prêt à jouer",
+                                        color = if (isCurrent) NeonCyan.copy(0.8f) else TextGray,
+                                        fontSize = 10.sp
+                                    )
+                                }
+
+                                // Selection state
+                                if (isCurrent) {
+                                    Icon(
+                                        imageVector = Icons.Default.Equalizer,
+                                        contentDescription = null,
+                                        tint = NeonCyan,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

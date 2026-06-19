@@ -135,3 +135,37 @@ fun AudioVisualizer(
         }
     }
 }
+
+/**
+ * Returns a high-quality, professional, themed cover URL strictly mapped to the music title
+ * to avoid random or generic image placement.
+ */
+fun getPremiumAudioCover(title: String): String {
+    val lower = title.lowercase()
+    return when {
+        lower.contains("synthwave") || lower.contains("synth") || lower.contains("retro") || lower.contains("neon") -> 
+            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80" // Purple neon waves synth
+        lower.contains("ambient") || lower.contains("echo") || lower.contains("space") || lower.contains("relax") -> 
+            "https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=400&q=80" // Deep space / cozy lofi lights
+        lower.contains("woods") || lower.contains("resonance") || lower.contains("forest") || lower.contains("nature") -> 
+            "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=80" // Sunrays deep woods/nature
+        lower.contains("acoustic") || lower.contains("whisper") || lower.contains("guitar") || lower.contains("voice") -> 
+            "https://images.unsplash.com/photo-1485278537138-4e8911a13c02?w=400&q=80" // Acoustic instrument closeup
+        lower.contains("jazz") || lower.contains("blues") || lower.contains("chill") -> 
+            "https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=400&q=80" // Saxophone lounge ambiance
+        lower.contains("piano") || lower.contains("classic") || lower.contains("orchestra") -> 
+            "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&q=80" // Grand piano ivory keys
+        else -> {
+            val index = Math.abs(title.hashCode()) % 6
+            val artisticPlaceholders = listOf(
+                "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&q=80", // Curved abstract glowing threads
+                "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=400&q=80", // Dark slate fluid wave painting
+                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80", // Glowing neon stage lasers
+                "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&q=80", // Analog vinyl turntable close detail
+                "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=80", // Vintage cassette deck close detail
+                "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&q=80"  // Deep premium abstract sound waves
+            )
+            artisticPlaceholders[index]
+        }
+    }
+}

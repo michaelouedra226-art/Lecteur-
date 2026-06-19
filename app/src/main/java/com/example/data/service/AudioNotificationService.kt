@@ -23,6 +23,14 @@ class AudioNotificationService : Service() {
                 sendLocalBroadcast("com.example.PLAY_PAUSE")
                 return START_STICKY
             }
+            "ACTION_PREV" -> {
+                sendLocalBroadcast("com.example.PREV")
+                return START_STICKY
+            }
+            "ACTION_NEXT" -> {
+                sendLocalBroadcast("com.example.NEXT")
+                return START_STICKY
+            }
             "ACTION_CLOSE" -> {
                 sendLocalBroadcast("com.example.CLOSE")
                 stopForeground(true)
@@ -43,12 +51,30 @@ class AudioNotificationService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        // Previous Action
+        val prevIntent = Intent(this, AudioNotificationService::class.java).apply {
+            setAction("ACTION_PREV")
+        }
+        val prevPendingIntent = PendingIntent.getService(
+            this, 3, prevIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         // Play/Pause Action
         val toggleIntent = Intent(this, AudioNotificationService::class.java).apply {
             setAction("ACTION_TOGGLE")
         }
         val togglePendingIntent = PendingIntent.getService(
             this, 1, toggleIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Next Action
+        val nextIntent = Intent(this, AudioNotificationService::class.java).apply {
+            setAction("ACTION_NEXT")
+        }
+        val nextPendingIntent = PendingIntent.getService(
+            this, 4, nextIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
@@ -69,8 +95,14 @@ class AudioNotificationService : Service() {
             .setContentText(if (isAudio) "Lecture Audio" else "Lecture Vidéo")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
+            .addAction(android.R.drawable.ic_media_previous, "Précédent", prevPendingIntent)
             .addAction(playPauseIcon, playPauseLabel, togglePendingIntent)
+            .addAction(android.R.drawable.ic_media_next, "Suivant", nextPendingIntent)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Fermer", closePendingIntent)
+            .setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setShowActionsInCompactView(0, 1, 2)
+            )
             .setOngoing(isPlaying)
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

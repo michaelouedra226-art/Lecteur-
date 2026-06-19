@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -32,6 +34,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
@@ -41,6 +45,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -57,6 +63,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -85,6 +92,8 @@ import androidx.compose.ui.unit.sp
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.runtime.LaunchedEffect
@@ -96,6 +105,7 @@ import com.example.data.entity.MediaEntity
 import com.example.data.entity.PlaylistEntity
 import com.example.ui.components.GlassmorphicCard
 import com.example.ui.components.InteractiveGlassCard
+import com.example.ui.components.getPremiumAudioCover
 import com.example.ui.viewmodel.MediaPlayerViewModel
 import com.example.ui.viewmodel.PlayerTab
 import com.example.ui.viewmodel.SortType
@@ -103,6 +113,7 @@ import com.example.ui.viewmodel.PremiumThemeAccent
 import com.example.ui.theme.GlassObsidian
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonPink
+import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.TextGray
 import com.example.ui.theme.TextLight
 import kotlinx.coroutines.launch
@@ -313,12 +324,14 @@ fun MediaListScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White.copy(0.03f), RoundedCornerShape(24.dp))
+                .horizontalScroll(rememberScrollState())
                 .padding(4.dp),
-            horizontalArrangement = Arrangement.SpaceAround
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             val tabs = listOf(
                 PlayerTab.VIDEOS to Icons.Default.VideoLibrary,
                 PlayerTab.AUDIOS to Icons.Default.MusicNote,
+                PlayerTab.IPTV to Icons.Default.Tv,
                 PlayerTab.PLAYLISTS to Icons.AutoMirrored.Filled.PlaylistPlay,
                 PlayerTab.FAVORITES to Icons.Default.Favorite,
                 PlayerTab.HISTORY to Icons.Default.History
@@ -337,33 +350,32 @@ fun MediaListScreen(
                         .clip(RoundedCornerShape(20.dp))
                         .background(brush = bgBrush)
                         .clickable { viewModel.selectTab(tab) }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = tab.name,
                             tint = if (selected) Color.Black else TextLight.copy(0.7f),
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        if (selected) {
-                            Text(
-                                text = when (tab) {
-                                    PlayerTab.VIDEOS -> "Vidéos"
-                                    PlayerTab.AUDIOS -> "Audios"
-                                    PlayerTab.PLAYLISTS -> "Listes"
-                                    PlayerTab.FAVORITES -> "Favoris"
-                                    PlayerTab.HISTORY -> "Historique"
-                                },
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
-                        }
+                        Text(
+                            text = when (tab) {
+                                PlayerTab.VIDEOS -> "Vidéos"
+                                PlayerTab.AUDIOS -> "Audios"
+                                PlayerTab.IPTV -> "IPTV"
+                                PlayerTab.PLAYLISTS -> "Listes"
+                                PlayerTab.FAVORITES -> "Favoris"
+                                PlayerTab.HISTORY -> "Historique"
+                            },
+                            fontSize = 11.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                            color = if (selected) Color.Black else TextLight.copy(0.7f)
+                        )
                     }
                 }
             }
@@ -389,7 +401,7 @@ fun MediaListScreen(
         }
 
         // Empty State Check
-        if (mediaList.isEmpty() && currentTab != PlayerTab.PLAYLISTS) {
+        if (mediaList.isEmpty() && currentTab != PlayerTab.PLAYLISTS && currentTab != PlayerTab.IPTV) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -500,6 +512,13 @@ fun MediaListScreen(
                         }
                     }
 
+                    PlayerTab.IPTV -> {
+                        IptvScreenContent(
+                            viewModel = viewModel,
+                            onOpenVideoPlayer = onOpenVideoPlayer
+                        )
+                    }
+
                     else -> { // Audios, Favorites, History
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -560,7 +579,7 @@ fun MediaListScreen(
                         ) {
                             if (item.isAudio) {
                                 AsyncImage(
-                                    model = "https://picsum.photos/seed/${item.title.hashCode()}/200",
+                                    model = getPremiumAudioCover(item.title),
                                     contentDescription = "Cover",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
@@ -609,13 +628,32 @@ fun MediaListScreen(
                         }
 
                         // Playing Action Controls
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(onClick = { viewModel.playPrevious() }) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipPrevious,
+                                    contentDescription = "Précédent",
+                                    tint = TextLight.copy(0.8f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                             IconButton(onClick = { viewModel.togglePlayPause() }) {
                                 Icon(
                                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                     contentDescription = "Play/Pause",
                                     tint = NeonCyan,
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                            IconButton(onClick = { viewModel.playNext() }) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = "Suivant",
+                                    tint = TextLight.copy(0.8f),
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -845,7 +883,7 @@ fun AudioListItemLine(
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = "https://picsum.photos/seed/${item.title.hashCode()}/120",
+                    model = getPremiumAudioCover(item.title),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -1013,13 +1051,25 @@ fun VideoThumbnail(
     var thumbnailBitmap by remember(path) { mutableStateOf<Bitmap?>(null) }
     val context = LocalContext.current
 
+    val fastImageUrl = remember(path) {
+        when {
+            path.contains("BigBuckBunny.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
+            path.contains("ElephantsDream.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg"
+            path.contains("TearsOfSteel.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/TearsOfSteel.jpg"
+            path.contains("ForBiggerBlazes.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg"
+            else -> null
+        }
+    }
+
     LaunchedEffect(path) {
-        if (!path.startsWith("http")) { // Local file
+        if (fastImageUrl == null) {
             withContext(Dispatchers.IO) {
                 var retriever: MediaMetadataRetriever? = null
                 try {
                     retriever = MediaMetadataRetriever()
-                    if (path.startsWith("content://")) {
+                    if (path.startsWith("http")) {
+                        retriever.setDataSource(path, HashMap())
+                    } else if (path.startsWith("content://")) {
                         retriever.setDataSource(context, Uri.parse(path))
                     } else {
                         retriever.setDataSource(path)
@@ -1040,46 +1090,676 @@ fun VideoThumbnail(
         }
     }
 
-    if (path.startsWith("http")) {
-        // Map the online sample videos to their official thumbnail image URLs
-        val imageUrl = when {
-            path.contains("BigBuckBunny.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
-            path.contains("ElephantsDream.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg"
-            path.contains("TearsOfSteel.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/TearsOfSteel.jpg"
-            path.contains("ForBiggerBlazes.mp4") -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg"
-            else -> "https://picsum.photos/seed/${path.hashCode()}/320/200"
-        }
+    if (fastImageUrl != null) {
         AsyncImage(
-            model = imageUrl,
+            model = fastImageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+        )
+    } else if (thumbnailBitmap != null) {
+        Image(
+            bitmap = thumbnailBitmap!!.asImageBitmap(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = modifier
         )
     } else {
-        if (thumbnailBitmap != null) {
-            Image(
-                bitmap = thumbnailBitmap!!.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = modifier
-            )
-        } else {
-            // Modern premium gradient fallback with video indicator
-            Box(
-                modifier = modifier.background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color(0xFF1F2335), Color(0xFF161924))
-                    )
-                ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayCircleOutline,
-                    contentDescription = null,
-                    tint = Color.White.copy(0.3f),
-                    modifier = Modifier.size(40.dp)
+        // Modern premium gradient fallback with video indicator
+        Box(
+            modifier = modifier.background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFF1F2335), Color(0xFF161924))
                 )
+            ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.PlayCircleOutline,
+                contentDescription = null,
+                tint = Color.White.copy(0.3f),
+                modifier = Modifier.size(40.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun IptvScreenContent(
+    viewModel: MediaPlayerViewModel,
+    onOpenVideoPlayer: (MediaEntity) -> Unit
+) {
+    var showImportDialog by remember { mutableStateOf(false) }
+    var m3uInputText by remember { mutableStateOf("") }
+    var iptvUrlText by remember { mutableStateOf("") }
+    var importTabActive by remember { mutableStateOf(0) } // 0 = URL, 1 = Local File, 2 = Raw Text
+    var isImportingUrl by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    
+    val channels by viewModel.iptvChannels.collectAsState()
+    val selectedGroup by viewModel.selectedIptvGroup.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val text = inputStream.bufferedReader().use { it.readText() }
+                    val success = viewModel.saveCustomIptvM3u(text)
+                    if (success) {
+                        Toast.makeText(context, "Playlist M3U importée avec succès !", Toast.LENGTH_SHORT).show()
+                        showImportDialog = false
+                    } else {
+                        Toast.makeText(context, "Erreur: format M3U non valide ou vide", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erreur de chargement: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    // Compute categories dynamically
+    val groups = remember(channels) {
+        listOf("Tout") + channels.mapNotNull { it.group }.distinct().sorted()
+    }
+
+    // Filter channels based on selected group
+    val filteredChannels = remember(channels, selectedGroup) {
+        if (selectedGroup == "Tout") {
+            channels
+        } else {
+            channels.filter { it.group == selectedGroup }
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Top action bar
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "IPTV Pro en direct",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Pulsing Red Live Dot
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color.Red)
+                    )
+                }
+                Text(
+                    text = "${channels.size} Chaînes disponibles",
+                    color = TextGray,
+                    fontSize = 12.sp
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { showImportDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Importer IPTV", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                IconButton(
+                    onClick = {
+                        viewModel.refreshIptvChannels(
+                            onStarted = { isRefreshing = true },
+                            onFinished = { success, msg ->
+                                isRefreshing = false
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    },
+                    enabled = !isRefreshing,
+                    modifier = Modifier.background(Color.White.copy(0.04f), RoundedCornerShape(10.dp))
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = NeonCyan, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Refresh, contentDescription = "Réactualiser", tint = TextLight)
+                    }
+                }
+
+                if (channels.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            viewModel.clearIptvChannels()
+                            Toast.makeText(context, "IPTV vidé ! Vous pouvez re-configurer.", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.background(Color.White.copy(0.04f), RoundedCornerShape(10.dp))
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Vider", tint = Color.Red.copy(0.8f))
+                    }
+                }
+            }
+        }
+
+        // Horizontal Category sliding row
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(groups) { group ->
+                val isSelected = group == selectedGroup
+                val borderAlpha = if (isSelected) 0.6f else 0.1f
+                val txtColor = if (isSelected) NeonCyan else TextLight.copy(0.8f)
+                val bgColor = if (isSelected) NeonCyan.copy(0.1f) else Color.White.copy(0.03f)
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(bgColor)
+                        .border(1.dp, NeonCyan.copy(alpha = borderAlpha), RoundedCornerShape(14.dp))
+                        .clickable { viewModel.selectIptvGroup(group) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = group,
+                        color = txtColor,
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // Channels List
+        if (channels.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White.copy(0.04f), RoundedCornerShape(24.dp))
+                        .border(1.dp, NeonGreen.copy(0.25f), RoundedCornerShape(24.dp))
+                        .padding(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tv,
+                        contentDescription = null,
+                        tint = NeonGreen,
+                        modifier = Modifier.size(56.dp)
+                    )
+                    
+                    Text(
+                        text = "Configurer votre IPTV / M3U Pro",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        text = "Collez le lien URL .m3u de votre abonnement ou fournisseur pour charger vos flux en direct avec votre connexion internet.",
+                        color = TextGray,
+                        fontSize = 12.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    
+                    var directUrlText by remember { mutableStateOf("") }
+                    var isDirectImporting by remember { mutableStateOf(false) }
+                    
+                    OutlinedTextField(
+                        value = directUrlText,
+                        onValueChange = { directUrlText = it },
+                        placeholder = { Text("https://exemple.com/playlist.m3u", color = TextGray.copy(0.35f), fontSize = 12.sp) },
+                        singleLine = true,
+                        enabled = !isDirectImporting,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = NeonGreen,
+                            unfocusedBorderColor = Color.White.copy(0.12f),
+                            focusedContainerColor = Color.Black.copy(0.2f),
+                            unfocusedContainerColor = Color.Black.copy(0.2f)
+                        )
+                    )
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = {
+                                if (directUrlText.trim().isNotEmpty()) {
+                                    isDirectImporting = true
+                                    viewModel.saveCustomIptvUrl(
+                                        url = directUrlText.trim(),
+                                        onSuccess = { count ->
+                                            isDirectImporting = false
+                                            Toast.makeText(context, "$count chaînes chargées avec succès !", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onError = { err ->
+                                            isDirectImporting = false
+                                            Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                                        }
+                                    )
+                                } else {
+                                    Toast.makeText(context, "Saisissez d'abord un lien URL", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            enabled = !isDirectImporting,
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1.2f)
+                        ) {
+                            if (isDirectImporting) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.Black, strokeWidth = 2.dp)
+                            } else {
+                                Text("Charger URL", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                filePickerLauncher.launch("*/*")
+                            },
+                            enabled = !isDirectImporting,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(0.08f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1.1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = NeonGreen,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Fichier", color = TextLight, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                        }
+                        
+                        Button(
+                            onClick = {
+                                viewModel.resetIptvToDefaults()
+                                Toast.makeText(context, "Flux de démonstration chargés !", Toast.LENGTH_SHORT).show()
+                            },
+                            enabled = !isDirectImporting,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(0.08f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(0.9f)
+                        ) {
+                            Text("Démo", color = TextLight, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        } else if (filteredChannels.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Aucune chaîne trouvée dans cette catégorie", color = TextGray, fontSize = 14.sp)
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(150.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 80.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                items(filteredChannels) { channel ->
+                    InteractiveGlassCard(
+                        onClick = {
+                            val mediaItem = MediaEntity(
+                                path = channel.url,
+                                title = channel.name,
+                                mimeType = "video/mp4", // Video stream treatment
+                                size = 0L,
+                                duration = 0L,
+                                dateAdded = System.currentTimeMillis(),
+                                isAudio = false
+                            )
+                            viewModel.playMedia(mediaItem)
+                            onOpenVideoPlayer(mediaItem)
+                        },
+                        cornerRadius = 14.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1.1f)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Logo display with live indicator overlay
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(80.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(0.4f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (channel.logo != null) {
+                                    AsyncImage(
+                                        model = channel.logo,
+                                        contentDescription = channel.name,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize().padding(10.dp)
+                                    )
+                                } else {
+                                    // Custom abstract TV logo procedural shape
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.linearGradient(
+                                                    colors = listOf(Color(0xFF0F172A), Color(0xFF1E293B))
+                                                )
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Tv,
+                                            contentDescription = null,
+                                            tint = NeonCyan.copy(0.35f),
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
+                                }
+
+                                // Breathing red "DIRECT / LIVE" label overlay
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color.Red.copy(0.85f))
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "LIVE",
+                                        color = Color.White,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Title name labels
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = channel.name,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = channel.group ?: "Général",
+                                    color = TextGray,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal dialogue with tabs to input URL link OR paste raw M3U playlist text
+    if (showImportDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isImportingUrl) showImportDialog = false },
+            containerColor = Color(0xFF1A1D29),
+            title = {
+                Text(
+                    text = "Importer IPTV / M3U Pro",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Custom tab switcher
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.Black.copy(0.3f))
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (importTabActive == 0) NeonGreen.copy(0.12f) else Color.Transparent)
+                                .clickable(enabled = !isImportingUrl) { importTabActive = 0 }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Lien URL",
+                                color = if (importTabActive == 0) NeonGreen else TextGray,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (importTabActive == 1) NeonGreen.copy(0.12f) else Color.Transparent)
+                                .clickable(enabled = !isImportingUrl) { importTabActive = 1 }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Fichier local",
+                                color = if (importTabActive == 1) NeonGreen else TextGray,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (importTabActive == 2) NeonGreen.copy(0.12f) else Color.Transparent)
+                                .clickable(enabled = !isImportingUrl) { importTabActive = 2 }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Texte brut",
+                                color = if (importTabActive == 2) NeonGreen else TextGray,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (importTabActive == 0) {
+                        Text(
+                            text = "Entrez l'URL d'un flux ou fichier .m3u / .m3u8 distant. Cela fonctionnera de manière dynamique avec votre connexion internet.",
+                            color = TextGray,
+                            fontSize = 11.sp
+                        )
+                        OutlinedTextField(
+                            value = iptvUrlText,
+                            onValueChange = { iptvUrlText = it },
+                            placeholder = { Text("https://example.com/playlist.m3u", color = TextGray.copy(0.35f), fontSize = 12.sp) },
+                            singleLine = true,
+                            enabled = !isImportingUrl,
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = NeonGreen,
+                                unfocusedBorderColor = Color.White.copy(0.12f),
+                                focusedContainerColor = Color.Black.copy(0.2f),
+                                unfocusedContainerColor = Color.Black.copy(0.2f)
+                            )
+                        )
+                    } else if (importTabActive == 1) {
+                        Text(
+                            text = "Sélectionnez un fichier .m3u local stocké sur votre appareil pour charger vos chaînes IPTV.",
+                            color = TextGray,
+                            fontSize = 11.sp
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(0.03f), RoundedCornerShape(12.dp))
+                                .border(1.dp, NeonGreen.copy(0.2f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    filePickerLauncher.launch("*/*")
+                                }
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = NeonGreen,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Text(
+                                    "Parcourir les fichiers...",
+                                    color = NeonGreen,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Collez le contenu textuel brut du fichier m3u contenant vos chaînes.",
+                            color = TextGray,
+                            fontSize = 11.sp
+                        )
+                        OutlinedTextField(
+                            value = m3uInputText,
+                            onValueChange = { m3uInputText = it },
+                            placeholder = { Text("#EXTM3U\n#EXTINF:-1 tvg-logo=\"logo_url\" group-title=\"Groupe\",Chaîne\nhttp://ip:port/stream", color = TextGray.copy(0.35f), fontSize = 11.sp) },
+                            enabled = !isImportingUrl,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = NeonGreen,
+                                unfocusedBorderColor = Color.White.copy(0.12f),
+                                focusedContainerColor = Color.Black.copy(0.2f),
+                                unfocusedContainerColor = Color.Black.copy(0.2f)
+                            )
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (importTabActive == 1) {
+                    // File selection handles imports automatically
+                } else if (isImportingUrl) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = NeonGreen, strokeWidth = 2.dp)
+                } else {
+                    Button(
+                        onClick = {
+                            if (importTabActive == 0) {
+                                if (iptvUrlText.trim().isNotEmpty()) {
+                                    isImportingUrl = true
+                                    viewModel.saveCustomIptvUrl(
+                                        url = iptvUrlText.trim(),
+                                        onSuccess = { count ->
+                                            isImportingUrl = false
+                                            Toast.makeText(context, "Succès: $count chaînes chargées avec connexion !", Toast.LENGTH_SHORT).show()
+                                            showImportDialog = false
+                                        },
+                                        onError = { error ->
+                                            isImportingUrl = false
+                                            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                        }
+                                    )
+                                } else {
+                                    Toast.makeText(context, "Veuillez saisir un lien URL valide", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                if (m3uInputText.trim().isNotEmpty()) {
+                                    val success = viewModel.saveCustomIptvM3u(m3uInputText)
+                                    if (success) {
+                                        Toast.makeText(context, "Playlist M3U importée avec succès !", Toast.LENGTH_SHORT).show()
+                                        showImportDialog = false
+                                    } else {
+                                        Toast.makeText(context, "Erreur: format M3U non valide ou vide", Toast.LENGTH_LONG).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Le texte est vide", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Importer", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                if (!isImportingUrl) {
+                    TextButton(onClick = { showImportDialog = false }) {
+                        Text("Annuler", color = TextGray)
+                    }
+                }
+            }
+        )
     }
 }
