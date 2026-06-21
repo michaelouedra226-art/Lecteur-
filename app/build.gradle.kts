@@ -75,6 +75,7 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
+      debuggable = true
       signingConfig = signingConfigs.getByName("debugConfig")
     }
   }
